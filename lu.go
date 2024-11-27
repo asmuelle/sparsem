@@ -39,6 +39,54 @@ func (m *CSRMatrix) LU() (*LUDecomposition, error) {
 		copy(u[i], a[i])
 	}
 
+	// Check for near-singularity
+	for i := 0; i < n; i++ {
+		if math.Abs(a[i][i]) < 1e-10 {
+			return nil, fmt.Errorf("matrix is singular or nearly singular")
+		}
+		// Check row scaling
+		rowSum := 0.0
+		for j := 0; j < n; j++ {
+			rowSum += math.Abs(a[i][j])
+		}
+		if rowSum < 1e-10 {
+			return nil, fmt.Errorf("matrix is singular or nearly singular")
+		}
+	}
+
+	// Check if matrix is singular before starting decomposition
+	maxVal := 0.0
+	minVal := math.MaxFloat64
+	for i := 0; i < n; i++ {
+		rowSum := 0.0
+		colSum := 0.0
+		for j := 0; j < n; j++ {
+			rowSum += math.Abs(u[i][j])
+			colSum += math.Abs(u[j][i])
+		}
+		if rowSum > maxVal {
+			maxVal = rowSum
+		}
+		if rowSum < minVal && rowSum > 0 {
+			minVal = rowSum
+		}
+		if colSum > maxVal {
+			maxVal = colSum
+		}
+		if colSum < minVal && colSum > 0 {
+			minVal = colSum
+		}
+		// Check if row or column is all zeros
+		if rowSum < 1e-10 || colSum < 1e-10 {
+			return nil, fmt.Errorf("matrix is singular or nearly singular")
+		}
+	}
+
+	// Check condition number estimate
+	if minVal < 1e-10 || maxVal/minVal > 1e12 {
+		return nil, fmt.Errorf("matrix is singular or nearly singular")
+	}
+
 	// Perform LU decomposition with partial pivoting
 	for k := 0; k < n-1; k++ {
 		// Find pivot
@@ -52,23 +100,35 @@ func (m *CSRMatrix) LU() (*LUDecomposition, error) {
 		}
 
 		if maxVal < 1e-10 {
-			return nil, fmt.Errorf("matrix is singular")
+			return nil, fmt.Errorf("matrix is singular or nearly singular")
 		}
 
 		// Swap rows if necessary
 		if pivot != k {
 			u[k], u[pivot] = u[pivot], u[k]
-			l[k], l[pivot] = l[pivot], l[k]
+			for j := 0; j < k; j++ {
+				l[k][j], l[pivot][j] = l[pivot][j], l[k][j]
+			}
 			p[k], p[pivot] = p[pivot], p[k]
 		}
 
 		// Compute multipliers and eliminate
 		for i := k + 1; i < n; i++ {
+			if math.Abs(u[k][k]) < 1e-10 {
+				return nil, fmt.Errorf("matrix is singular or nearly singular")
+			}
 			l[i][k] = u[i][k] / u[k][k]
 			for j := k; j < n; j++ {
 				u[i][j] -= l[i][k] * u[k][j]
 			}
+			// Zero out the eliminated element for numerical stability
+			u[i][k] = 0
 		}
+	}
+
+	// Check if the last diagonal element is too small
+	if math.Abs(u[n-1][n-1]) < 1e-10 {
+		return nil, fmt.Errorf("matrix is singular or nearly singular")
 	}
 
 	return &LUDecomposition{
@@ -128,9 +188,17 @@ func (lu *LUDecomposition) Det() float64 {
 	
 	// Count number of row exchanges (swaps)
 	swaps := 0
+	visited := make([]bool, len(lu.P))
 	for i := 0; i < len(lu.P); i++ {
-		if lu.P[i] != i {
-			swaps++
+		if !visited[i] {
+			cycleLen := 0
+			for j := i; !visited[j]; j = lu.P[j] {
+				visited[j] = true
+				cycleLen++
+			}
+			if cycleLen > 1 {
+				swaps += cycleLen - 1
+			}
 		}
 	}
 	
