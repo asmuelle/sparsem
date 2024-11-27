@@ -1,3 +1,3 @@
 module github.com/andreasmuller/sparsem
 
-go 1.17
+go 1.23

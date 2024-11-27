@@ -51,8 +51,12 @@ func TestLUDecomposition(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := NewCSRMatrix(tt.matrix)
-			lu, err := m.LU()
+			a, err := NewCSRMatrix(tt.matrix)
+			if err != nil {
+				t.Fatalf("Failed to create test matrix: %v", err)
+			}
+
+			lu, err := a.LU()
 
 			if tt.wantErr {
 				if err == nil {
@@ -133,10 +137,14 @@ func TestLUSolve(t *testing.T) {
 		{4, 1},
 		{1, 3},
 	}
-	matrix := NewCSRMatrix(data)
+	a, err := NewCSRMatrix(data)
+	if err != nil {
+		t.Fatalf("Failed to create test matrix: %v", err)
+	}
+
 	b := []float64{1, 2}
 
-	lu, err := matrix.LU()
+	lu, err := a.LU()
 	if err != nil {
 		t.Fatalf("LU decomposition failed: %v", err)
 	}
@@ -162,9 +170,12 @@ func TestLUSingular(t *testing.T) {
 		{1, 1},
 		{1, 1},
 	}
-	matrix := NewCSRMatrix(data)
+	a, err := NewCSRMatrix(data)
+	if err != nil {
+		t.Fatalf("Failed to create singular test matrix: %v", err)
+	}
 
-	_, err := matrix.LU()
+	_, err = a.LU()
 	if err == nil {
 		t.Error("Expected error for singular matrix, got nil")
 	}
@@ -200,8 +211,13 @@ func TestLUDet(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		matrix := NewCSRMatrix(test.matrix)
-		lu, err := matrix.LU()
+		a, err := NewCSRMatrix(test.matrix)
+		if err != nil {
+			t.Errorf("Test %d: Failed to create test matrix: %v", i, err)
+			continue
+		}
+
+		lu, err := a.LU()
 		if err != nil {
 			t.Errorf("Test %d: LU decomposition failed: %v", i, err)
 			continue
@@ -221,9 +237,12 @@ func TestLUNonSquare(t *testing.T) {
 		{1, 2, 3},
 		{4, 5, 6},
 	}
-	matrix := NewCSRMatrix(data)
+	a, err := NewCSRMatrix(data)
+	if err != nil {
+		t.Fatalf("Failed to create non-square test matrix: %v", err)
+	}
 
-	_, err := matrix.LU()
+	_, err = a.LU()
 	if err == nil {
 		t.Error("Expected error for non-square matrix, got nil")
 	}

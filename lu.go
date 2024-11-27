@@ -131,9 +131,19 @@ func (m *CSRMatrix) LU() (*LUDecomposition, error) {
 		return nil, fmt.Errorf("matrix is singular or nearly singular")
 	}
 
+	// Convert L and U to CSR format
+	L, err := NewCSRMatrix(l)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create L matrix: %v", err)
+	}
+	U, err := NewCSRMatrix(u)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create U matrix: %v", err)
+	}
+
 	return &LUDecomposition{
-		L: NewCSRMatrix(l),
-		U: NewCSRMatrix(u),
+		L: L,
+		U: U,
 		P: p,
 	}, nil
 }

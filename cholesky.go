@@ -23,24 +23,33 @@ func (m *CSRMatrix) Cholesky() (*CholeskyDecomposition, error) {
 		l[i] = make([]float64, n)
 	}
 
-	for i := 0; i < n; i++ {
-		for j := 0; j <= i; j++ {
-			sum := dense[i][j]
+	for j := 0; j < n; j++ {
+		// Diagonal element
+		sum := 0.0
+		for k := 0; k < j; k++ {
+			sum += l[j][k] * l[j][k]
+		}
+		if dense[j][j]-sum <= 0 {
+			return nil, fmt.Errorf("matrix is not positive definite")
+		}
+		l[j][j] = math.Sqrt(dense[j][j] - sum)
+
+		// Off-diagonal elements
+		for i := j + 1; i < n; i++ {
+			sum := 0.0
 			for k := 0; k < j; k++ {
-				sum -= l[i][k] * l[j][k]
+				sum += l[i][k] * l[j][k]
 			}
-			if i == j {
-				if sum <= 0 {
-					return nil, fmt.Errorf("matrix is not positive definite")
-				}
-				l[i][j] = math.Sqrt(sum)
-			} else {
-				l[i][j] = sum / l[j][j]
-			}
+			l[i][j] = (dense[i][j] - sum) / l[j][j]
 		}
 	}
 
-	return &CholeskyDecomposition{L: NewCSRMatrix(l)}, nil
+	// Convert to CSR format
+	L, err := NewCSRMatrix(l)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create CSR matrix: %v", err)
+	}
+	return &CholeskyDecomposition{L: L}, nil
 }
 
 // Solve solves the system Ax = b where A is the original matrix
